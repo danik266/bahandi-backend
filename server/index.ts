@@ -1071,25 +1071,17 @@ app.get('/api/auth/users', async (_request, response, next) => {
 
 app.post('/api/auth/login', async (request, response, next) => {
   try {
-    console.log('🔍 Login request - body:', JSON.stringify(request.body), 'headers:', request.headers)
     const login = String(request.body?.login ?? '').trim().toLowerCase()
     const password = String(request.body?.password ?? '')
-    console.log(`🔍 Extracted - login: "${login}" (length: ${login.length}), password: "${password}" (length: ${password.length})`)
-    
     if (!login || !password) {
-      console.log('❌ Missing login or password')
       throw badRequest('Введите логин и пароль.')
     }
 
     const employee = await Employee.findOne({ login }).lean()
-    console.log('🔍 Found employee:', employee ? employee.login : 'not found')
-    
     if (!employee || employee.password !== password) {
-      console.log('❌ Invalid credentials')
       throw badRequest('Неверный логин или пароль.')
     }
 
-    console.log('✅ Login successful for:', login)
     response.json({
       user: serializeEmployee(employee),
       token: Buffer.from(`${employee.refId}:${employee.role}:${employee.login}`).toString('base64url'),
