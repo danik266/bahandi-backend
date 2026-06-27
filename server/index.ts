@@ -1141,6 +1141,131 @@ app.get('/api/bootstrap', async (request, response, next) => {
   }
 })
 
+app.post('/api/ai/analyze', async (request, response, next) => {
+  try {
+    const { photoBase64, hint, products, reasons } = request.body as {
+      photoBase64: string
+      hint?: string
+      products: Array<{ id: string; name: string; category: string }>
+      reasons: Array<{ id: string; name: string }>
+    }
+
+    if (!photoBase64) throw badRequest('Нет фото для анализа.')
+
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) throw badRequest('Gemini API ключ не настроен.')
+
+    const productList = products.map((p) => `- id="${p.id}" name="${p.name}" (${p.category})`).join('\n')
+    const reasonList = reasons.map((r) => `- id="${r.id}" name="${r.name}"`).join('\n')
+
+    const prompt = `Ты — система автозаполнения формы списания продукции для фастфуд-сети Bahandi (бургеры, напитки, упаковка).
+
+Пользователь сфотографировал товар и кратко описал проблему: "${hint || 'не указано'}".
+
+Список продуктов в базе:
+${productList}
+
+Список причин списания:
+${reasonList}
+
+Внимательно посмотри на фото. Определи:
+1. Какой продукт изображён — выбери ОДИН id из списка выше
+2. Какова причина списания — выбери ОДИН id из списка причин выше
+3. Количество штук, которые надо списать (целое число, смотри на фото)
+4. Если причина "Повреждение / помято": укажи вид повреждения (Помято / Упало / Порвана упаковка / Прочее) и когда обнаружено (При приемке / При хранении / В процессе готовки / Прочее)
+5. Короткий профессиональный комментарий для заявки (1-2 предложения на русском)
+
+Верни ТОЛЬКО JSON без markdown и без пояснений:
+{
+  "productId": "...",
+  "reasonId": "...",
+  "quantity": 1,
+  "damageType": "..." или null,
+  "damageDiscoveredAt": "..." или null,
+  "comment": "...",
+  "confidence": 85,
+  "signs": ["признак1", "признак2"]
+}`
+
+    const mimeType = photoBase64.startsWith('data:image/png') ? 'image/png'
+      : photoBase64.startsWith('data:image/webp') ? 'image/webp'
+      : 'image/jpeg'
+
+    const base64Data = photoBase64.includes(',') ? photoBase64.split(',')[1] : photoBase64
+
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64Data } },
+            ],
+          }],
+          generationConfig: { temperature: 1, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+        }),
+      },
+    )
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text()
+      console.error('Gemini API error text:', errorText)
+      throw badRequest('Ошибка Gemini API: ' + geminiResponse.status + ' - ' + errorText)
+    }
+
+    const geminiData = await geminiResponse.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>
+    }
+    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+
+    if (!rawText) {
+      const finishReason = geminiData.candidates?.[0]?.finishReason ?? 'unknown'
+      console.error('Gemini returned empty text, finishReason:', finishReason, JSON.stringify(geminiData))
+      throw badRequest(`ИИ не смог проанализировать фото (${finishReason}). Попробуйте другое фото.`)
+    }
+
+    // Strip possible markdown code fences
+    const jsonText = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+
+    let parsed: {
+      productId: string
+      reasonId: string
+      quantity: number
+      damageType: string | null
+      damageDiscoveredAt: string | null
+      comment: string
+      confidence: number
+      signs: string[]
+    }
+    try {
+      parsed = JSON.parse(jsonText)
+    } catch {
+      console.error('Gemini JSON parse failed. Raw text:', rawText)
+      throw badRequest('ИИ вернул неожиданный ответ. Попробуйте ещё раз.')
+    }
+
+    const matchedProduct = products.find((p) => p.id === parsed.productId) ?? products[0]
+    const matchedReason = reasons.find((r) => r.id === parsed.reasonId) ?? reasons[0]
+
+    response.json({
+      productId: matchedProduct.id,
+      productName: matchedProduct.name,
+      reasonId: matchedReason.id,
+      quantity: Math.max(1, Math.round(parsed.quantity || 1)),
+      damageType: parsed.damageType || '',
+      damageDiscoveredAt: parsed.damageDiscoveredAt || '',
+      comment: parsed.comment || '',
+      confidence: Math.min(99, Math.max(50, parsed.confidence || 80)),
+      signs: Array.isArray(parsed.signs) ? parsed.signs : [],
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post('/api/requests', async (request, response, next) => {
   try {
     const publicBaseUrl = getPublicBaseUrl(request)
@@ -1254,6 +1379,7 @@ app.get(/^\/(?!api(?:\/|$)).*/, (_request, response, next) => {
 
 app.use((error: Error & { status?: number }, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
   const status = error.status ?? 500
+  if (status >= 500) console.error('[Server Error]', error.message, error.stack)
   response.status(status).json({
     error: status >= 500 ? 'Server error' : error.message,
   })
