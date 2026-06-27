@@ -16,6 +16,7 @@ dotenv.config({ path: path.join(projectDir, '.env') })
 dotenv.config({ path: path.join(siteDir, '.env'), override: true })
 
 type Role = 'sender' | 'reviewer'
+type AccessScope = 'assigned' | 'all'
 type Status = 'pending' | 'approved' | 'rejected' | 'iiko_error'
 type WriteOffType = 'without_deduction' | 'with_deduction'
 
@@ -40,9 +41,12 @@ type EmployeeRecord = {
   refId: string
   name: string
   role: Role
+  login: string
+  password: string
   outletId: string
+  outletIds: string[]
+  accessScope: AccessScope
   iikoEmployeeId: string
-  pinCode: string
 }
 
 type ReasonRecord = {
@@ -738,33 +742,56 @@ const employeesSeed: EmployeeRecord[] = [
     refId: 'user-aibek',
     name: 'Айбек С.',
     role: 'sender',
+    login: 'aibek',
+    password: 'demo123',
     outletId: 'outlet-01',
+    outletIds: ['outlet-01'],
+    accessScope: 'assigned',
     iikoEmployeeId: 'emp_aibek',
-    pinCode: '1111',
   },
   {
     refId: 'user-madina',
     name: 'Мадина К.',
     role: 'sender',
+    login: 'madina',
+    password: 'demo123',
     outletId: 'outlet-02',
+    outletIds: ['outlet-02'],
+    accessScope: 'assigned',
     iikoEmployeeId: 'emp_madina',
-    pinCode: '1111',
   },
   {
     refId: 'user-timur',
     name: 'Тимур Н.',
     role: 'sender',
+    login: 'timur',
+    password: 'demo123',
     outletId: 'outlet-03',
+    outletIds: ['outlet-03'],
+    accessScope: 'assigned',
     iikoEmployeeId: 'emp_timur',
-    pinCode: '1111',
   },
   {
     refId: 'user-aigerim',
     name: 'Айгерим О.',
     role: 'reviewer',
+    login: 'aigerim',
+    password: 'review123',
     outletId: 'outlet-01',
+    outletIds: ['outlet-01', 'outlet-02', 'outlet-03'],
+    accessScope: 'assigned',
     iikoEmployeeId: 'emp_aigerim',
-    pinCode: '9999',
+  },
+  {
+    refId: 'user-manager',
+    name: 'Главный проверяющий',
+    role: 'reviewer',
+    login: 'manager',
+    password: 'manager123',
+    outletId: 'outlet-01',
+    outletIds: [],
+    accessScope: 'all',
+    iikoEmployeeId: 'emp_manager',
   },
 ]
 
@@ -917,9 +944,12 @@ const employeeSchema = new Schema<EmployeeRecord>(
     refId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     role: { type: String, enum: ['sender', 'reviewer'], required: true },
+    login: { type: String, required: true, unique: true, index: true },
+    password: { type: String, required: true },
     outletId: { type: String, required: true },
+    outletIds: { type: [String], required: true, default: [] },
+    accessScope: { type: String, enum: ['assigned', 'all'], required: true, default: 'assigned' },
     iikoEmployeeId: { type: String, required: true },
-    pinCode: { type: String, required: true },
   },
   { timestamps: true },
 )
@@ -1036,36 +1066,59 @@ app.get('/api/auth/users', async (_request, response, next) => {
 
 app.post('/api/auth/login', async (request, response, next) => {
   try {
-    const userId = String(request.body?.userId ?? '')
-    const pinCode = String(request.body?.pinCode ?? '')
-    if (!userId || !pinCode) throw badRequest('Выберите пользователя и введите PIN.')
-
-    const employee = await Employee.findOne({ refId: userId }).lean()
-    if (!employee || employee.pinCode !== pinCode) {
-      throw badRequest('Неверный пользователь или PIN.')
+    console.log('🔍 Login request - body:', JSON.stringify(request.body), 'headers:', request.headers)
+    const login = String(request.body?.login ?? '').trim().toLowerCase()
+    const password = String(request.body?.password ?? '')
+    console.log(`🔍 Extracted - login: "${login}" (length: ${login.length}), password: "${password}" (length: ${password.length})`)
+    
+    if (!login || !password) {
+      console.log('❌ Missing login or password')
+      throw badRequest('Введите логин и пароль.')
     }
 
+    const employee = await Employee.findOne({ login }).lean()
+    console.log('🔍 Found employee:', employee ? employee.login : 'not found')
+    
+    if (!employee || employee.password !== password) {
+      console.log('❌ Invalid credentials')
+      throw badRequest('Неверный логин или пароль.')
+    }
+
+    console.log('✅ Login successful for:', login)
     response.json({
       user: serializeEmployee(employee),
-      token: Buffer.from(`${employee.refId}:${employee.role}`).toString('base64url'),
+      token: Buffer.from(`${employee.refId}:${employee.role}:${employee.login}`).toString('base64url'),
     })
   } catch (error) {
     next(error)
   }
 })
 
-app.get('/api/bootstrap', async (_request, response, next) => {
+app.get('/api/bootstrap', async (request, response, next) => {
   try {
-    const publicBaseUrl = getPublicBaseUrl(_request)
-    const [outlets, products, employees, reasons, requests, auditEvents] =
-      await Promise.all([
-        Outlet.find().sort({ sortOrder: 1, refId: 1 }).lean(),
-        Product.find().sort({ refId: 1 }).lean(),
-        Employee.find().sort({ role: 1, refId: 1 }).lean(),
-        Reason.find().sort({ refId: 1 }).lean(),
-        WriteOff.find().sort({ createdAt: -1 }).lean(),
-        AuditEvent.find().sort({ createdAt: -1 }).lean(),
-      ])
+    const publicBaseUrl = getPublicBaseUrl(request)
+    const userId = String(request.query.userId ?? '')
+    const currentUser = userId ? await Employee.findOne({ refId: userId }).lean() : null
+    const [products, reasons] = await Promise.all([
+      Product.find().sort({ refId: 1 }).lean(),
+      Reason.find().sort({ refId: 1 }).lean(),
+    ])
+
+    const outlets = currentUser
+      ? await Outlet.find(createOutletQuery(currentUser)).sort({ sortOrder: 1, refId: 1 }).lean()
+      : []
+    const requests = currentUser
+      ? await WriteOff.find(createRequestQuery(currentUser)).sort({ createdAt: -1 }).lean()
+      : []
+    const requestIds = requests.map((writeOffRequest) => writeOffRequest.requestId)
+    const [employees, auditEvents] = currentUser
+      ? await Promise.all([
+          Employee.find(createEmployeeQuery(currentUser)).sort({ role: 1, refId: 1 }).lean(),
+          requestIds.length
+            ? AuditEvent.find({ requestId: { $in: requestIds } }).sort({ createdAt: -1 }).lean()
+            : [],
+        ])
+      : [[], []]
 
     response.json({
       outlets: outlets.map(serializeRefRecord),
@@ -1087,9 +1140,12 @@ app.post('/api/requests', async (request, response, next) => {
   try {
     const publicBaseUrl = getPublicBaseUrl(request)
     const payload = request.body as Partial<WriteOffRecord>
-    const product = await Product.findOne({ refId: payload.productId }).lean()
+    const [product, sender] = await Promise.all([
+      Product.findOne({ refId: payload.productId }).lean(),
+      Employee.findOne({ refId: payload.createdById }).lean(),
+    ])
 
-    validateCreateRequest(payload, Boolean(product))
+    validateCreateRequest(payload, Boolean(product), sender)
 
     const nextId = await getNextRequestId()
     const createdRequest = await WriteOff.create({
@@ -1129,6 +1185,7 @@ app.patch('/api/requests/:requestId/approve', async (request, response, next) =>
     const current = await WriteOff.findOne({ requestId: request.params.requestId })
     if (!current) throw notFound('Заявка не найдена.')
     if (current.status !== 'pending') throw badRequest('Заявка уже обработана.')
+    await assertReviewerAccess(reviewedById, current.outletId)
 
     const documentId = createIikoDocumentId(current.requestId)
     current.status = 'approved'
@@ -1156,6 +1213,7 @@ app.patch('/api/requests/:requestId/reject', async (request, response, next) => 
     const current = await WriteOff.findOne({ requestId: request.params.requestId })
     if (!current) throw notFound('Заявка не найдена.')
     if (current.status !== 'pending') throw badRequest('Заявка уже обработана.')
+    await assertReviewerAccess(reviewedById, current.outletId)
 
     current.status = 'rejected'
     current.reviewedById = reviewedById
@@ -1273,7 +1331,7 @@ async function syncReferenceData() {
       employeesSeed.map((record) => ({
         updateOne: {
           filter: { refId: record.refId },
-          update: { $set: record },
+          update: { $set: record, $unset: { pinCode: '' } },
           upsert: true,
         },
       })),
@@ -1332,7 +1390,54 @@ async function addAuditEvent(requestId: string, userId: string, action: string) 
   })
 }
 
-function validateCreateRequest(payload: Partial<WriteOffRecord>, productExists: boolean) {
+function getEmployeeOutletIds(employee: Pick<EmployeeRecord, 'outletId' | 'outletIds'>) {
+  const outletIds = employee.outletIds?.length ? employee.outletIds : [employee.outletId]
+  return [...new Set(outletIds.filter(Boolean))]
+}
+
+function canAccessOutlet(employee: EmployeeRecord, outletId?: string) {
+  if (!outletId) return false
+  return employee.accessScope === 'all' || getEmployeeOutletIds(employee).includes(outletId)
+}
+
+function createOutletQuery(employee: EmployeeRecord) {
+  if (employee.accessScope === 'all') return {}
+  return { refId: { $in: getEmployeeOutletIds(employee) } }
+}
+
+function createRequestQuery(employee: EmployeeRecord) {
+  if (employee.role === 'sender') return { createdById: employee.refId }
+  if (employee.accessScope === 'all') return {}
+  return { outletId: { $in: getEmployeeOutletIds(employee) } }
+}
+
+function createEmployeeQuery(employee: EmployeeRecord) {
+  if (employee.accessScope === 'all') return {}
+  const outletIds = getEmployeeOutletIds(employee)
+  return {
+    $or: [
+      { refId: employee.refId },
+      { outletId: { $in: outletIds } },
+      { outletIds: { $in: outletIds } },
+    ],
+  }
+}
+
+async function assertReviewerAccess(reviewerId: string, outletId: string) {
+  const reviewer = await Employee.findOne({ refId: reviewerId }).lean()
+  if (!reviewer || reviewer.role !== 'reviewer') {
+    throw badRequest('Пользователь не является проверяющим.')
+  }
+  if (!canAccessOutlet(reviewer, outletId)) {
+    throw badRequest('У проверяющего нет доступа к этой торговой точке.')
+  }
+}
+
+function validateCreateRequest(
+  payload: Partial<WriteOffRecord>,
+  productExists: boolean,
+  sender: EmployeeRecord | null,
+) {
   if (!payload.outletId) throw badRequest('Выберите торговую точку.')
   if (!payload.productId || !productExists) throw badRequest('Выберите продукт из справочника.')
   if (!Number.isFinite(Number(payload.quantity)) || Number(payload.quantity) <= 0) {
@@ -1349,6 +1454,12 @@ function validateCreateRequest(payload: Partial<WriteOffRecord>, productExists: 
     throw badRequest('Выберите сотрудника для удержания.')
   }
   if (!payload.createdById) throw badRequest('Не передан отправитель.')
+  if (!sender || sender.role !== 'sender') {
+    throw badRequest('Пользователь не является сотрудником торговой точки.')
+  }
+  if (!canAccessOutlet(sender, payload.outletId)) {
+    throw badRequest('Сотрудник не привязан к выбранной торговой точке.')
+  }
 }
 
 function serializeRefRecord<T extends { refId: string; _id?: unknown; __v?: number }>(record: T) {
@@ -1357,8 +1468,20 @@ function serializeRefRecord<T extends { refId: string; _id?: unknown; __v?: numb
 }
 
 function serializeEmployee(record: EmployeeRecord & { _id?: unknown; __v?: number }) {
-  const { refId, pinCode: _pinCode, ...rest } = stripMongoFields(record)
-  return { id: refId, ...rest }
+  const {
+    refId,
+    password: _password,
+    pinCode: _pinCode,
+    outletIds,
+    accessScope,
+    ...rest
+  } = stripMongoFields(record) as EmployeeRecord & { pinCode?: string }
+  return {
+    id: refId,
+    ...rest,
+    outletIds: outletIds?.length ? outletIds : [rest.outletId],
+    accessScope: accessScope ?? 'assigned',
+  }
 }
 
 function serializeRequest(
