@@ -70,6 +70,7 @@ type WriteOffRecord = {
   photoUrl: string
   photoName: string
   photoHash: string
+  extraPhotoUrls?: string[]
   status: Status
   createdById: string
   reviewedById?: string
@@ -999,9 +1000,7 @@ const reasonsSeed: ReasonRecord[] = [
   { refId: 'receiving', name: 'Брак при приемке' },
 ]
 
-const requestsSeed: WriteOffRecord[] = []
-
-const auditSeed: AuditRecord[] = []
+// requestsSeed and auditSeed unused variables removed
 
 const outletSchema = new Schema<OutletRecord>(
   {
@@ -1070,6 +1069,7 @@ const writeOffSchema = new Schema<WriteOffRecord>(
     photoUrl: { type: String, required: true },
     photoName: { type: String, required: true },
     photoHash: { type: String, required: true, index: true },
+    extraPhotoUrls: { type: [String], default: [] },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected', 'iiko_error'],
@@ -1473,6 +1473,7 @@ app.post('/api/requests', async (request, response, next) => {
       photoUrl: normalizeIncomingPhotoUrl(payload.photoUrl),
       photoName: payload.photoName,
       photoHash: payload.photoHash,
+      extraPhotoUrls: (payload.extraPhotoUrls ?? []).map(url => normalizeIncomingPhotoUrl(url) || ''),
       status: 'pending',
       createdById: payload.createdById,
       createdAt: new Date(),
@@ -1481,7 +1482,7 @@ app.post('/api/requests', async (request, response, next) => {
     await addAuditEvent(nextId, payload.createdById ?? 'unknown', 'Создал заявку')
     response
       .status(201)
-      .json({ request: serializeRequest(createdRequest.toObject(), publicBaseUrl) })
+      .json({ request: serializeRequest((createdRequest as any).toObject(), publicBaseUrl) })
   } catch (error) {
     next(error)
   }
@@ -1909,6 +1910,7 @@ function serializeRequest(
     id: requestId,
     ...rest,
     photoUrl: resolvePublicUrl(rest.photoUrl, publicBaseUrl),
+    extraPhotoUrls: (rest.extraPhotoUrls ?? []).map(url => resolvePublicUrl(url, publicBaseUrl)),
     createdAt: new Date(createdAt).toISOString(),
     reviewedAt: reviewedAt ? new Date(reviewedAt).toISOString() : undefined,
   }
