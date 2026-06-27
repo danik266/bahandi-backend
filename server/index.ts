@@ -1638,7 +1638,7 @@ async function syncReferenceData() {
       employeesSeed.map((record) => ({
         updateOne: {
           filter: { refId: record.refId },
-          update: { $set: record, $unset: { pinCode: '' } },
+          update: { $set: record },
           upsert: true,
         },
       })),
