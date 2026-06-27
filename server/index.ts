@@ -25,6 +25,7 @@ type OutletRecord = {
   sortOrder: number
   name: string
   address: string
+  city: string
   iikoStoreId: string
 }
 
@@ -43,6 +44,8 @@ type EmployeeRecord = {
   role: Role
   login: string
   password: string
+  pinCode: string
+  city: string
   outletId: string
   outletIds: string[]
   accessScope: AccessScope
@@ -85,620 +88,772 @@ type AuditRecord = {
   createdAt: Date
 }
 
+type IikoMockDocument = {
+  id: string
+  requestId: string
+  status: 'created'
+  createdAt: string
+  source: 'mock-adapter'
+  outlet: {
+    id: string
+    name: string
+    iikoStoreId: string
+  }
+  product: {
+    id: string
+    name: string
+    iikoProductId: string
+    quantity: number
+    unit: string
+    cost: number
+    amount: number
+  }
+  reason: {
+    id: string
+    name: string
+  }
+  sender: {
+    id: string
+    name: string
+    iikoEmployeeId: string
+  }
+  reviewer: {
+    id: string
+    name: string
+    iikoEmployeeId: string
+  }
+  deductionEmployee?: {
+    id: string
+    name: string
+    iikoEmployeeId: string
+  }
+  comment: string
+  payload: {
+    documentType: 'WRITEOFF_DOCUMENT'
+    externalNumber: string
+    storeId: string
+    items: Array<{
+      productId: string
+      amount: number
+      unit: string
+      comment: string
+    }>
+  }
+}
+
 type CounterRecord = {
   _id: string
   seq: number
 }
+
+const CITY_ASTANA = 'Астана'
+const CITY_ALMATY = 'Алматы'
+const CITY_UST_KAMEN = 'Усть-Каменогорск'
+const CITY_SHYMKENT = 'Шымкент'
+const CITY_KARAGANDA = 'Караганда'
+const CITY_AKTAU = 'Актау'
+const CITY_ATYRAU = 'Атырау'
+const CITY_KOKSHETAU = 'Кокшетау'
+const CITY_KOSTANAY = 'Костанай'
+const CITY_TARAZ = 'Тараз'
+const CITY_AKTOBE = 'Актобе'
 
 const outletsSeed: OutletRecord[] = [
   {
     refId: 'outlet-01',
     sortOrder: 1,
     name: 'Bahandi Хан Шатыр',
-    address: 'Астана, ТРЦ Хан Шатыр, 3 этаж',
+    address: 'ТРЦ Хан Шатыр, 3 этаж',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_001',
   },
   {
     refId: 'outlet-02',
     sortOrder: 2,
     name: 'Bahandi Азия Парк',
-    address: 'Астана, ТРЦ Asia park, 3 этаж',
+    address: 'ТРЦ Asia park, 3 этаж',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_002',
   },
   {
     refId: 'outlet-03',
     sortOrder: 3,
     name: 'Bahandi Мега SilkWay',
-    address: 'Астана, ТРЦ Мега SilkWay, 2 этаж',
+    address: 'ТРЦ Мега SilkWay, 2 этаж',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_003',
   },
   {
     refId: 'outlet-004',
     sortOrder: 4,
     name: 'Bahandi Магнум Туран',
-    address: 'Астана, проспект Туран, 55д, киоск',
+    address: 'Проспект Туран, 55д, киоск',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_004',
   },
   {
     refId: 'outlet-005',
     sortOrder: 5,
     name: 'Bahandi Чубары',
-    address: 'Астана, м-н Шубар, киоск',
+    address: 'М-н Шубар, киоск',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_005',
   },
   {
     refId: 'outlet-006',
     sortOrder: 6,
     name: 'Bahandi Астана Молл',
-    address: 'Астана, проспект Тауелсиздик, 34/7, киоск',
+    address: 'Проспект Тауелсиздик, 34/7, киоск',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_006',
   },
   {
     refId: 'outlet-007',
     sortOrder: 7,
     name: 'Bahandi Петрова',
-    address: 'Астана, ул. Алексея Петрова, 22г, 1 этаж',
+    address: 'Ул. Алексея Петрова, 22г, 1 этаж',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_007',
   },
   {
     refId: 'outlet-008',
     sortOrder: 8,
     name: 'Bahandi Аружан',
-    address: 'Астана, ТРЦ Аружан, 3 этаж',
+    address: 'ТРЦ Аружан, 3 этаж',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_008',
   },
   {
     refId: 'outlet-009',
     sortOrder: 9,
     name: 'Bahandi Иманова',
-    address: 'Астана, ул. Аменгельды Иманова, 3, киоск',
+    address: 'Ул. Аменгельды Иманова, 3, киоск',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_009',
   },
   {
     refId: 'outlet-010',
     sortOrder: 10,
     name: 'Bahandi Даму Молл',
-    address: 'Астана, ТРЦ Damu Mall, 2 этаж',
+    address: 'ТРЦ Damu Mall, 2 этаж',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_010',
   },
   {
     refId: 'outlet-011',
     sortOrder: 11,
     name: 'Bahandi Магнум Кошкарбаева',
-    address: 'Астана, Юго-Восток (левая сторона) ж/м',
+    address: 'Юго-Восток, жилмассив',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_011',
   },
   {
     refId: 'outlet-012',
     sortOrder: 12,
     name: 'Bahandi Женис',
-    address: 'Астана, проспект Женис, 28а, киоск',
+    address: 'Проспект Женис, 28а, киоск',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_012',
   },
   {
     refId: 'outlet-013',
     sortOrder: 13,
     name: 'Bahandi Мангилик Ел',
-    address: 'Астана, ЖК Only Sun',
+    address: 'ЖК Only Sun',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_013',
   },
   {
     refId: 'outlet-014',
     sortOrder: 14,
     name: 'Bahandi Тумар',
-    address: 'Астана, ул. Сыганак, 1Б/2, киоск',
+    address: 'Ул. Сыганак, 1Б/2, киоск',
+    city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_014',
   },
   {
-    refId: 'outlet-015',
+    refId: 'outlet-087',
     sortOrder: 15,
+    name: 'Bahandi Жибек Жолы',
+    address: 'ТРЦ Жибек Жолы, 3 этаж',
+    city: CITY_ASTANA,
+    iikoStoreId: 'store_bahandi_087',
+  },
+  {
+    refId: 'outlet-015',
+    sortOrder: 16,
     name: 'Bahandi АДК',
-    address: 'Алматы, ТРЦ Riviera Park',
+    address: 'ТРЦ Riviera Park',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_015',
   },
   {
     refId: 'outlet-016',
-    sortOrder: 16,
+    sortOrder: 17,
     name: 'Bahandi Азия Парк',
-    address: 'Алматы, ТРК Asia Park, 3 этаж',
+    address: 'ТРК Asia Park, 3 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_016',
   },
   {
     refId: 'outlet-017',
-    sortOrder: 17,
+    sortOrder: 18,
     name: 'Bahandi Айнабулак',
-    address: 'Алматы, Айнабулак 2 микрорайон, 82/4, киоск',
+    address: 'Айнабулак 2 мкр., 82/4, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_017',
   },
   {
     refId: 'outlet-018',
-    sortOrder: 18,
+    sortOrder: 19,
     name: 'Bahandi Акжар',
-    address: 'Алматы, Жандосова 254/9',
+    address: 'Жандосова 254/9',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_018',
   },
   {
     refId: 'outlet-019',
-    sortOrder: 19,
+    sortOrder: 20,
     name: 'Bahandi Апорт',
-    address: 'Алматы, ТРЦ Молл Апорт, 2 этаж',
+    address: 'ТРЦ Молл Апорт, 2 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_019',
   },
   {
     refId: 'outlet-020',
-    sortOrder: 20,
+    sortOrder: 21,
     name: 'Bahandi Апорт Кульджинка',
-    address: 'Алматы, ТРЦ Aport Mall East',
+    address: 'ТРЦ Aport Mall East',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_020',
   },
   {
     refId: 'outlet-021',
-    sortOrder: 21,
+    sortOrder: 22,
     name: 'Bahandi Атакент',
-    address: 'Алматы, ул. Ауэзова, 140, 1 этаж',
+    address: 'Ул. Ауэзова, 140, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_021',
   },
   {
     refId: 'outlet-022',
-    sortOrder: 22,
+    sortOrder: 23,
     name: 'Bahandi Байтурсынова',
-    address: 'Алматы, ул. Байтурсынова, 61, 1 этаж',
+    address: 'Ул. Байтурсынова, 61, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_022',
   },
   {
     refId: 'outlet-023',
-    sortOrder: 23,
+    sortOrder: 24,
     name: 'Bahandi Белинского',
-    address: 'Алматы, ул. Ильяса Жансугурова, 258, киоск',
+    address: 'Ул. Ильяса Жансугурова, 258, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_023',
   },
   {
     refId: 'outlet-024',
-    sortOrder: 24,
+    sortOrder: 25,
     name: 'Bahandi Бесагаш',
-    address: 'Алматы, с. Бесагаш, ул. Райымбек батыра, 250/1, киоск',
+    address: 'С. Бесагаш, ул. Райымбек батыра, 250/1, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_024',
   },
   {
     refId: 'outlet-025',
-    sortOrder: 25,
+    sortOrder: 26,
     name: 'Bahandi ВАЗ',
-    address: 'Алматы, ул. Тукая, 28, 1 этаж',
+    address: 'Ул. Тукая, 28, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_025',
   },
   {
     refId: 'outlet-026',
-    sortOrder: 26,
+    sortOrder: 27,
     name: 'Bahandi Весновка',
-    address: 'Алматы, Коктем-2 микрорайон, 22, киоск',
+    address: 'Коктем-2 мкр., 22, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_026',
   },
   {
     refId: 'outlet-027',
-    sortOrder: 27,
+    sortOrder: 28,
     name: 'Bahandi Водник',
-    address: 'Алматы, Рынок Алатау',
+    address: 'Рынок Алатау',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_027',
   },
   {
     refId: 'outlet-028',
-    sortOrder: 28,
+    sortOrder: 29,
     name: 'Bahandi Гагарина',
-    address: 'Алматы, проспект Гагарина, 41, 1 этаж',
+    address: 'Проспект Гагарина, 41, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_028',
   },
   {
     refId: 'outlet-029',
-    sortOrder: 29,
+    sortOrder: 30,
     name: 'Bahandi Глобус Фудкорт',
-    address: 'Алматы, ТРЦ Globus, 2 этаж',
+    address: 'ТРЦ Globus, 2 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_029',
   },
   {
     refId: 'outlet-030',
-    sortOrder: 30,
+    sortOrder: 31,
     name: 'Bahandi ГРЭС',
-    address: 'Алматы, с. Отеген Батыра, ул. Жансугурова, 15а',
+    address: 'С. Отеген Батыра, ул. Жансугурова, 15а',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_030',
   },
   {
     refId: 'outlet-031',
-    sortOrder: 31,
+    sortOrder: 32,
     name: 'Bahandi Дружба',
-    address: 'Алматы, ул. Шамгона Кажыгалиева, 22',
+    address: 'Ул. Шамгона Кажыгалиева, 22',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_031',
   },
   {
     refId: 'outlet-032',
-    sortOrder: 32,
+    sortOrder: 33,
     name: 'Bahandi Жаркент',
-    address: 'Алматы, Панфиловский р-н, г. Жаркент, ул. Юлдашева, 7а, киоск',
+    address: 'Г. Жаркент, ул. Юлдашева, 7а, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_032',
   },
   {
     refId: 'outlet-033',
-    sortOrder: 33,
+    sortOrder: 34,
     name: 'Bahandi Жубанова',
-    address: 'Алматы, Аксай-4 микрорайон, 22а/3, киоск',
+    address: 'Аксай-4 мкр., 22а/3, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_033',
   },
   {
     refId: 'outlet-034',
-    sortOrder: 34,
+    sortOrder: 35,
     name: 'Bahandi Жумалиева',
-    address: 'Алматы, ул. Толе би, 147, 1 этаж',
+    address: 'Ул. Толе би, 147, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_034',
   },
   {
     refId: 'outlet-035',
-    sortOrder: 35,
+    sortOrder: 36,
     name: 'Bahandi Каменка',
-    address: 'Алматы, ул. Керуентау, 2/1, 1 этаж',
+    address: 'Ул. Керуентау, 2/1, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_035',
   },
   {
     refId: 'outlet-036',
-    sortOrder: 36,
+    sortOrder: 37,
     name: 'Bahandi Капчагай',
-    address: 'Алматы, г. Конаев, Алматинская улица, 64а, киоск',
+    address: 'Г. Конаев, Алматинская улица, 64а, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_036',
   },
   {
     refId: 'outlet-037',
-    sortOrder: 37,
+    sortOrder: 38,
     name: 'Bahandi Каскелен',
-    address: 'Алматы, г. Каскелен, ул. Абен Омиралы, 99',
+    address: 'Г. Каскелен, ул. Абен Омиралы, 99',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_037',
   },
   {
     refId: 'outlet-038',
-    sortOrder: 38,
+    sortOrder: 39,
     name: 'Bahandi Кунаева',
-    address: 'Алматы, Абая проспект, 27, киоск',
+    address: 'Абая проспект, 27, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_038',
   },
   {
     refId: 'outlet-039',
-    sortOrder: 39,
+    sortOrder: 40,
     name: 'Bahandi Магнум Акбулак',
-    address: 'Алматы, Акбулак микрорайон, ул. Байтерекова, 6/1, 1 этаж',
+    address: 'Акбулак мкр., ул. Байтерекова, 6/1, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_039',
   },
   {
     refId: 'outlet-040',
-    sortOrder: 40,
+    sortOrder: 41,
     name: 'Bahandi Магнум Аксуат',
-    address: 'Алматы, ул. Аксуат, 128/2, киоск',
+    address: 'Ул. Аксуат, 128/2, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_040',
   },
   {
     refId: 'outlet-041',
-    sortOrder: 41,
+    sortOrder: 42,
     name: 'Bahandi Магнум Бесагаш',
-    address: 'Алматы, Медеуский район, ул. Халиуллина, 194/3, киоск',
+    address: 'Медеуский район, ул. Халиуллина, 194/3, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_041',
   },
   {
     refId: 'outlet-042',
-    sortOrder: 42,
+    sortOrder: 43,
     name: 'Bahandi Магнум Гагарина',
-    address: 'Алматы, проспект Гагарина, 41, 1 этаж',
+    address: 'Проспект Гагарина, 41, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_042',
   },
   {
     refId: 'outlet-043',
-    sortOrder: 43,
+    sortOrder: 44,
     name: 'Bahandi Джангильдина',
-    address: 'Алматы, ул. Демьяна Бедного, 3/2, киоск',
+    address: 'Ул. Демьяна Бедного, 3/2, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_043',
   },
   {
     refId: 'outlet-044',
-    sortOrder: 44,
+    sortOrder: 45,
     name: 'Bahandi Магнум Жетысу',
-    address: 'Алматы, Жетысу-3 микрорайон, 1г/3, киоск',
+    address: 'Жетысу-3 мкр., 1г/3, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_044',
   },
   {
     refId: 'outlet-045',
-    sortOrder: 45,
+    sortOrder: 46,
     name: 'Bahandi Максима',
-    address: 'Алматы, ТРК Maxima, 3 этаж',
+    address: 'ТРК Maxima, 3 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_045',
   },
   {
     refId: 'outlet-046',
-    sortOrder: 46,
+    sortOrder: 47,
     name: 'Bahandi Масанчи',
-    address: 'Алматы, ул. Масанчи, 96, цокольный этаж',
+    address: 'Ул. Масанчи, 96, цокольный этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_046',
   },
   {
     refId: 'outlet-047',
-    sortOrder: 47,
+    sortOrder: 48,
     name: 'Bahandi Масато',
-    address: 'Алматы, ул. Ораза Жандосова, 162а',
+    address: 'Ул. Ораза Жандосова, 162а',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_047',
   },
   {
     refId: 'outlet-048',
-    sortOrder: 48,
+    sortOrder: 49,
     name: 'Bahandi Мега Парк Сейфуллина',
-    address: 'Алматы, ТРК MEGA Park, 3 этаж',
+    address: 'ТРК MEGA Park, 3 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_048',
   },
   {
     refId: 'outlet-049',
-    sortOrder: 49,
+    sortOrder: 50,
     name: 'Bahandi Мега Центр Розыбакиева',
-    address: 'Алматы, ТРЦ Mega Center Alma-Ata',
+    address: 'ТРЦ Mega Center Alma-Ata',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_049',
   },
   {
     refId: 'outlet-050',
-    sortOrder: 50,
+    sortOrder: 51,
     name: 'Bahandi Мерей',
-    address: 'Алматы, проспект Суюнбая, 2/Б, киоск',
+    address: 'Проспект Суюнбая, 2/Б, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_050',
   },
   {
     refId: 'outlet-051',
-    sortOrder: 51,
+    sortOrder: 52,
     name: 'Bahandi Орбита',
-    address: 'Алматы, микрорайон Орбита-3, ул. Мустафина, 5Б/1, киоск',
+    address: 'Мкр. Орбита-3, ул. Мустафина, 5Б/1, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_051',
   },
   {
     refId: 'outlet-052',
-    sortOrder: 52,
+    sortOrder: 53,
     name: 'Bahandi Панфилова',
-    address: 'Алматы, ул. Панфилова, 110, киоск',
+    address: 'Ул. Панфилова, 110, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_052',
   },
   {
     refId: 'outlet-053',
-    sortOrder: 53,
+    sortOrder: 54,
     name: 'Bahandi Ритц Палас',
-    address: 'Алматы, Самал-3 микрорайон, 2а, киоск',
+    address: 'Самал-3 мкр., 2а, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_053',
   },
   {
     refId: 'outlet-054',
-    sortOrder: 54,
+    sortOrder: 55,
     name: 'Bahandi Сары Арка',
-    address: 'Алматы, рынок Сары Арка',
+    address: 'Рынок Сары Арка',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_054',
   },
   {
     refId: 'outlet-055',
-    sortOrder: 55,
+    sortOrder: 56,
     name: 'Bahandi Спутник',
-    address: 'Алматы, ТРЦ SPUTNIK mall, 3 этаж',
+    address: 'ТРЦ SPUTNIK mall, 3 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_055',
   },
   {
     refId: 'outlet-056',
-    sortOrder: 56,
+    sortOrder: 57,
     name: 'Bahandi Талгар',
-    address: 'Алматы, г. Талгар, ул. Кунаева, 140',
+    address: 'Г. Талгар, ул. Кунаева, 140',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_056',
   },
   {
     refId: 'outlet-057',
-    sortOrder: 57,
+    sortOrder: 58,
     name: 'Bahandi Тастак',
-    address: 'Алматы, Тастак-3 микрорайон, ул. Толе би, 229/3, киоск',
+    address: 'Тастак-3 мкр., ул. Толе би, 229/3, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_057',
   },
   {
     refId: 'outlet-058',
-    sortOrder: 58,
+    sortOrder: 59,
     name: 'Bahandi Татарка',
-    address: 'Алматы, ул. Оренбургская, 2, 1 этаж',
+    address: 'Ул. Оренбургская, 2, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_058',
   },
   {
     refId: 'outlet-059',
-    sortOrder: 59,
+    sortOrder: 60,
     name: 'Bahandi Торнадо',
-    address: 'Алматы, микрорайон 3-й, 20а, 1 этаж',
+    address: 'Мкр. 3-й, 20а, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_059',
   },
   {
     refId: 'outlet-060',
-    sortOrder: 60,
+    sortOrder: 61,
     name: 'Bahandi Форум',
-    address: 'Алматы, проспект Сейфуллина, 617, киоск',
+    address: 'Проспект Сейфуллина, 617, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_060',
   },
   {
     refId: 'outlet-061',
-    sortOrder: 61,
+    sortOrder: 62,
     name: 'Bahandi ЦУМ',
-    address: 'Алматы, ТД ЦУМ, 1 этаж',
+    address: 'ТД ЦУМ, 1 этаж',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_061',
   },
   {
     refId: 'outlet-062',
-    sortOrder: 62,
+    sortOrder: 63,
     name: 'Bahandi Шолохова',
-    address: 'Алматы, ул. Шолохова, 8, киоск',
+    address: 'Ул. Шолохова, 8, киоск',
+    city: CITY_ALMATY,
     iikoStoreId: 'store_bahandi_062',
   },
   {
     refId: 'outlet-063',
-    sortOrder: 63,
+    sortOrder: 64,
     name: 'Bahandi АДК Ривер',
-    address: 'Усть-Каменогорск, ТРК ADK River, 3 этаж',
+    address: 'ТРК ADK River, 3 этаж',
+    city: CITY_UST_KAMEN,
     iikoStoreId: 'store_bahandi_063',
   },
   {
     refId: 'outlet-064',
-    sortOrder: 64,
+    sortOrder: 65,
     name: 'Bahandi Макси Молл',
-    address: 'Усть-Каменогорск, ТРЦ Maxi Mall, 2 этаж',
+    address: 'ТРЦ Maxi Mall, 2 этаж',
+    city: CITY_UST_KAMEN,
     iikoStoreId: 'store_bahandi_064',
   },
   {
     refId: 'outlet-065',
-    sortOrder: 65,
+    sortOrder: 66,
     name: 'Bahandi Даймонд Плаза',
-    address: 'Шымкент, ТРК Diamond plaza, 4 этаж',
+    address: 'ТРК Diamond plaza, 4 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_065',
   },
   {
     refId: 'outlet-066',
-    sortOrder: 66,
+    sortOrder: 67,
     name: 'Bahandi Дала Молл',
-    address: 'Шымкент, ТЦ Dala Mall, 2 этаж',
+    address: 'ТЦ Dala Mall, 2 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_066',
   },
   {
     refId: 'outlet-067',
-    sortOrder: 67,
+    sortOrder: 68,
     name: 'Bahandi Динара',
-    address: 'Шымкент, проспект Республики, 40/1, 1 этаж',
+    address: 'Проспект Республики, 40/1, 1 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_067',
   },
   {
     refId: 'outlet-068',
-    sortOrder: 68,
+    sortOrder: 69,
     name: 'Bahandi Керемет',
-    address: 'Шымкент, ул. Байтурсынова, 81, 1 этаж',
+    address: 'Ул. Байтурсынова, 81, 1 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_068',
   },
   {
     refId: 'outlet-069',
-    sortOrder: 69,
+    sortOrder: 70,
     name: 'Bahandi Роял Плаза',
-    address: 'Шымкент, ТРЦ Royal Plaza, 0 этаж',
+    address: 'ТРЦ Royal Plaza, 0 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_069',
   },
   {
     refId: 'outlet-070',
-    sortOrder: 70,
+    sortOrder: 71,
     name: 'Bahandi Север',
-    address: 'Шымкент, ТЦ Север, 1 этаж',
+    address: 'ТЦ Север, 1 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_070',
   },
   {
     refId: 'outlet-071',
-    sortOrder: 71,
+    sortOrder: 72,
     name: 'Bahandi Сити Молл',
-    address: 'Шымкент, ТРЦ Shymkent City Mall, 3 этаж',
+    address: 'ТРЦ Shymkent City Mall, 3 этаж',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_071',
   },
   {
     refId: 'outlet-072',
-    sortOrder: 72,
+    sortOrder: 73,
     name: 'Bahandi Таукехана',
-    address: 'Шымкент, проспект Тауке хана, 112, киоск',
+    address: 'Проспект Тауке хана, 112, киоск',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_072',
   },
   {
     refId: 'outlet-073',
-    sortOrder: 73,
+    sortOrder: 74,
     name: 'Bahandi Янги Шахар',
-    address: 'Шымкент, Тамерлановское шоссе, 1а/8, киоск',
+    address: 'Тамерлановское шоссе, 1а/8, киоск',
+    city: CITY_SHYMKENT,
     iikoStoreId: 'store_bahandi_073',
   },
   {
     refId: 'outlet-074',
-    sortOrder: 74,
+    sortOrder: 75,
     name: 'Bahandi Гульжан',
-    address: 'Караганда, микрорайон Степной-1, 5/8, киоск',
+    address: 'Мкр. Степной-1, 5/8, киоск',
+    city: CITY_KARAGANDA,
     iikoStoreId: 'store_bahandi_074',
   },
   {
     refId: 'outlet-075',
-    sortOrder: 75,
+    sortOrder: 76,
     name: 'Bahandi Строителей',
-    address: 'Караганда, проспект Строителей, 35, киоск',
+    address: 'Проспект Строителей, 35, киоск',
+    city: CITY_KARAGANDA,
     iikoStoreId: 'store_bahandi_075',
   },
   {
     refId: 'outlet-076',
-    sortOrder: 76,
+    sortOrder: 77,
     name: 'Bahandi ЦУМ',
-    address: 'Караганда, ТЦ ЦУМ, 3 этаж',
+    address: 'ТЦ ЦУМ, 3 этаж',
+    city: CITY_KARAGANDA,
     iikoStoreId: 'store_bahandi_076',
   },
   {
     refId: 'outlet-077',
-    sortOrder: 77,
+    sortOrder: 78,
     name: 'Bahandi Шахтеров',
-    address: 'Караганда, проспект Шахтеров, 82/3, киоск',
+    address: 'Проспект Шахтеров, 82/3, киоск',
+    city: CITY_KARAGANDA,
     iikoStoreId: 'store_bahandi_077',
   },
   {
     refId: 'outlet-078',
-    sortOrder: 78,
+    sortOrder: 79,
     name: 'Bahandi Юбилейный',
-    address: 'Караганда, проспект Нуркена Абдирова, 38, киоск',
+    address: 'Проспект Нуркена Абдирова, 38, киоск',
+    city: CITY_KARAGANDA,
     iikoStoreId: 'store_bahandi_078',
   },
   {
     refId: 'outlet-079',
-    sortOrder: 79,
+    sortOrder: 80,
     name: 'Bahandi Сая Парк',
-    address: 'Актау, ТЦ Saya Park, 2 этаж',
+    address: 'ТЦ Saya Park, 2 этаж',
+    city: CITY_AKTAU,
     iikoStoreId: 'store_bahandi_079',
   },
   {
     refId: 'outlet-080',
-    sortOrder: 80,
+    sortOrder: 81,
     name: 'Bahandi Грин Плаза',
-    address: 'Актау, ЖК Green Plaza',
+    address: 'ЖК Green Plaza',
+    city: CITY_AKTAU,
     iikoStoreId: 'store_bahandi_080',
   },
   {
     refId: 'outlet-081',
-    sortOrder: 81,
+    sortOrder: 82,
     name: 'Bahandi Байзаар',
-    address: 'Атырау, ТРЦ Baizaar, 3 этаж',
+    address: 'ТРЦ Baizaar, 3 этаж',
+    city: CITY_ATYRAU,
     iikoStoreId: 'store_bahandi_081',
   },
   {
     refId: 'outlet-082',
-    sortOrder: 82,
+    sortOrder: 83,
     name: 'Bahandi Инфинити Молл',
-    address: 'Атырау, ТРЦ Infinity Mall, 3 этаж',
+    address: 'ТРЦ Infinity Mall, 3 этаж',
+    city: CITY_ATYRAU,
     iikoStoreId: 'store_bahandi_082',
   },
   {
     refId: 'outlet-083',
-    sortOrder: 83,
+    sortOrder: 84,
     name: 'Bahandi Рио',
-    address: 'Кокшетау, ТРЦ РИО, 4 этаж',
+    address: 'ТРЦ РИО, 4 этаж',
+    city: CITY_KOKSHETAU,
     iikoStoreId: 'store_bahandi_083',
   },
   {
     refId: 'outlet-084',
-    sortOrder: 84,
+    sortOrder: 85,
     name: 'Bahandi Март',
-    address: 'Костанай, ТРЦ MART, 3 этаж',
+    address: 'ТРЦ MART, 3 этаж',
+    city: CITY_KOSTANAY,
     iikoStoreId: 'store_bahandi_084',
   },
   {
     refId: 'outlet-085',
-    sortOrder: 85,
+    sortOrder: 86,
     name: 'Bahandi Март',
-    address: 'Тараз, ТРЦ Mart, 3 этаж',
+    address: 'ТРЦ Mart, 3 этаж',
+    city: CITY_TARAZ,
     iikoStoreId: 'store_bahandi_085',
   },
   {
     refId: 'outlet-086',
-    sortOrder: 86,
-    name: 'Bahandi Далида Сити',
-    address: 'Актобе, ТРЦ Dalida Plaza, 2 этаж',
-    iikoStoreId: 'store_bahandi_086',
-  },
-  {
-    refId: 'outlet-087',
     sortOrder: 87,
-    name: 'Bahandi Жибек Жолы',
-    address: 'Астана, ТРЦ Жибек Жолы, 3 этаж',
-    iikoStoreId: 'store_bahandi_087',
+    name: 'Bahandi Далида Сити',
+    address: 'ТРЦ Dalida Plaza, 2 этаж',
+    city: CITY_AKTOBE,
+    iikoStoreId: 'store_bahandi_086',
   },
 ]
 
@@ -745,54 +900,90 @@ const productsSeed: ProductRecord[] = [
 const employeesSeed: EmployeeRecord[] = [
   {
     refId: 'user-aibek',
-    name: 'Айбек С.',
+    name: 'Айбек Сейткали',
     role: 'sender',
     login: 'aibek',
     password: 'demo123',
+    pinCode: '1234',
+    city: CITY_ASTANA,
     outletId: 'outlet-01',
-    outletIds: ['outlet-01'],
+    outletIds: ['outlet-01', 'outlet-02'],
     accessScope: 'assigned',
     iikoEmployeeId: 'emp_aibek',
   },
   {
     refId: 'user-madina',
-    name: 'Мадина К.',
+    name: 'Мадина Касымова',
     role: 'sender',
     login: 'madina',
     password: 'demo123',
-    outletId: 'outlet-02',
-    outletIds: ['outlet-02'],
+    pinCode: '2222',
+    city: CITY_ASTANA,
+    outletId: 'outlet-03',
+    outletIds: ['outlet-03'],
     accessScope: 'assigned',
     iikoEmployeeId: 'emp_madina',
   },
   {
     refId: 'user-timur',
-    name: 'Тимур Н.',
+    name: 'Тимур Нурланов',
     role: 'sender',
     login: 'timur',
     password: 'demo123',
-    outletId: 'outlet-03',
-    outletIds: ['outlet-03'],
+    pinCode: '3333',
+    city: CITY_ALMATY,
+    outletId: 'outlet-015',
+    outletIds: ['outlet-015', 'outlet-016'],
     accessScope: 'assigned',
     iikoEmployeeId: 'emp_timur',
   },
   {
+    refId: 'user-dana',
+    name: 'Дана Жакупова',
+    role: 'sender',
+    login: 'dana',
+    password: 'demo123',
+    pinCode: '4444',
+    city: CITY_ALMATY,
+    outletId: 'outlet-019',
+    outletIds: ['outlet-019'],
+    accessScope: 'assigned',
+    iikoEmployeeId: 'emp_dana',
+  },
+  {
+    refId: 'user-ruslan',
+    name: 'Руслан Бекенов',
+    role: 'sender',
+    login: 'ruslan',
+    password: 'demo123',
+    pinCode: '5555',
+    city: CITY_SHYMKENT,
+    outletId: 'outlet-065',
+    outletIds: ['outlet-065', 'outlet-066'],
+    accessScope: 'assigned',
+    iikoEmployeeId: 'emp_ruslan',
+  },
+  {
     refId: 'user-aigerim',
-    name: 'Айгерим О.',
+    name: 'Айгерим Омарова',
     role: 'reviewer',
     login: 'aigerim',
     password: 'review123',
+    pinCode: '9999',
+    city: CITY_ASTANA,
     outletId: 'outlet-01',
-    outletIds: ['outlet-01', 'outlet-02', 'outlet-03'],
+    outletIds: ['outlet-01', 'outlet-02', 'outlet-03', 'outlet-004', 'outlet-005'],
     accessScope: 'assigned',
     iikoEmployeeId: 'emp_aigerim',
   },
   {
     refId: 'user-manager',
-    name: 'Главный проверяющий',
+    name: 'Главный менеджер',
     role: 'reviewer',
     login: 'manager',
     password: 'manager123',
+    pinCode: '0000',
+    city: CITY_ASTANA,
     outletId: 'outlet-01',
     outletIds: [],
     accessScope: 'all',
@@ -808,118 +999,9 @@ const reasonsSeed: ReasonRecord[] = [
   { refId: 'receiving', name: 'Брак при приемке' },
 ]
 
-const requestsSeed: WriteOffRecord[] = [
-  {
-    requestId: '1028',
-    outletId: 'outlet-01',
-    productId: 'product-bun',
-    quantity: 3,
-    unit: 'шт',
-    reasonId: 'damaged',
-    type: 'without_deduction',
-    comment: 'Булочки помялись при приемке, внешний вид не соответствует стандарту.',
-    photoUrl: '/writeoff-evidence.png',
-    photoName: 'writeoff-evidence.png',
-    photoHash: 'sha256:demo-7f31a9c2',
-    status: 'pending',
-    createdById: 'user-aibek',
-    createdAt: new Date('2026-06-27T08:42:00+05:00'),
-  },
-  {
-    requestId: '1027',
-    outletId: 'outlet-02',
-    productId: 'product-patty',
-    quantity: 1,
-    unit: 'шт',
-    reasonId: 'sanitary',
-    type: 'with_deduction',
-    deductionEmployeeId: 'user-madina',
-    comment: 'Котлета упала на пол во время сборки заказа, повторное использование запрещено.',
-    photoUrl: '/writeoff-evidence.png',
-    photoName: 'fallen-patty.png',
-    photoHash: 'sha256:demo-90e45a11',
-    status: 'pending',
-    createdById: 'user-madina',
-    createdAt: new Date('2026-06-27T09:15:00+05:00'),
-  },
-  {
-    requestId: '1026',
-    outletId: 'outlet-03',
-    productId: 'product-tomato',
-    quantity: 1.4,
-    unit: 'кг',
-    reasonId: 'expired',
-    type: 'without_deduction',
-    comment: 'Помидоры стали мягкими после хранения, часть партии нельзя использовать.',
-    photoUrl: '/writeoff-evidence.png',
-    photoName: 'tomatoes.png',
-    photoHash: 'sha256:demo-177ac3f0',
-    status: 'approved',
-    createdById: 'user-timur',
-    reviewedById: 'user-aigerim',
-    iikoDocumentId: 'WR-2706-026',
-    iikoStatusMessage: 'WRITEOFF_DOCUMENT создан в mock-адаптере',
-    createdAt: new Date('2026-06-27T07:58:00+05:00'),
-    reviewedAt: new Date('2026-06-27T08:22:00+05:00'),
-  },
-  {
-    requestId: '1025',
-    outletId: 'outlet-01',
-    productId: 'product-cheese',
-    quantity: 6,
-    unit: 'шт',
-    reasonId: 'leftover',
-    type: 'without_deduction',
-    comment: 'Остаток после приготовления не был промаркирован вовремя.',
-    photoUrl: '/writeoff-evidence.png',
-    photoName: 'cheese-leftover.png',
-    photoHash: 'sha256:demo-bca132e1',
-    status: 'rejected',
-    createdById: 'user-aibek',
-    reviewedById: 'user-aigerim',
-    rejectionReason: 'На фото не видна маркировка и количество продукции.',
-    createdAt: new Date('2026-06-26T22:18:00+05:00'),
-    reviewedAt: new Date('2026-06-26T22:43:00+05:00'),
-  },
-]
+const requestsSeed: WriteOffRecord[] = []
 
-const auditSeed: AuditRecord[] = [
-  {
-    eventId: 'audit-1',
-    requestId: '1028',
-    userId: 'user-aibek',
-    action: 'Создал заявку',
-    createdAt: new Date('2026-06-27T08:42:00+05:00'),
-  },
-  {
-    eventId: 'audit-2',
-    requestId: '1027',
-    userId: 'user-madina',
-    action: 'Создала заявку с удержанием',
-    createdAt: new Date('2026-06-27T09:15:00+05:00'),
-  },
-  {
-    eventId: 'audit-3',
-    requestId: '1026',
-    userId: 'user-timur',
-    action: 'Создал заявку',
-    createdAt: new Date('2026-06-27T07:58:00+05:00'),
-  },
-  {
-    eventId: 'audit-4',
-    requestId: '1026',
-    userId: 'user-aigerim',
-    action: 'Подтвердила и отправила в Iiko',
-    createdAt: new Date('2026-06-27T08:22:00+05:00'),
-  },
-  {
-    eventId: 'audit-5',
-    requestId: '1025',
-    userId: 'user-aigerim',
-    action: 'Отклонила заявку',
-    createdAt: new Date('2026-06-26T22:43:00+05:00'),
-  },
-]
+const auditSeed: AuditRecord[] = []
 
 const outletSchema = new Schema<OutletRecord>(
   {
@@ -927,6 +1009,7 @@ const outletSchema = new Schema<OutletRecord>(
     sortOrder: { type: Number, required: true, index: true },
     name: { type: String, required: true },
     address: { type: String, required: true },
+    city: { type: String, required: true, default: '' },
     iikoStoreId: { type: String, required: true },
   },
   { timestamps: true },
@@ -951,6 +1034,8 @@ const employeeSchema = new Schema<EmployeeRecord>(
     role: { type: String, enum: ['sender', 'reviewer'], required: true },
     login: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
+    pinCode: { type: String, required: true, default: '1234' },
+    city: { type: String, required: true, default: '' },
     outletId: { type: String, required: true },
     outletIds: { type: [String], required: true, default: [] },
     accessScope: { type: String, enum: ['assigned', 'all'], required: true, default: 'assigned' },
@@ -1034,6 +1119,7 @@ const corsOrigin = createCorsOrigin(process.env.CORS_ORIGIN)
 const publicDir = path.join(siteDir, 'public')
 const distDir = path.join(siteDir, 'dist')
 const shouldServeWeb = process.env.SERVE_WEB !== 'false'
+const iikoSubscribers = new Set<express.Response>()
 
 app.set('trust proxy', 1)
 app.use(cors({ origin: corsOrigin }))
@@ -1072,20 +1158,84 @@ app.get('/api/auth/users', async (_request, response, next) => {
 app.post('/api/auth/login', async (request, response, next) => {
   try {
     const login = String(request.body?.login ?? '').trim().toLowerCase()
+    const pinCode = String(request.body?.pinCode ?? '')
     const password = String(request.body?.password ?? '')
-    if (!login || !password) {
-      throw badRequest('Введите логин и пароль.')
+    if (!login || (!pinCode && !password)) {
+      throw badRequest('Введите логин и пин-код.')
     }
 
     const employee = await Employee.findOne({ login }).lean()
-    if (!employee || employee.password !== password) {
-      throw badRequest('Неверный логин или пароль.')
+    const pinMatch = pinCode && employee?.pinCode === pinCode
+    const passwordMatch = password && employee?.password === password
+    if (!employee || (!pinMatch && !passwordMatch)) {
+      throw badRequest('Неверный логин или пин-код.')
     }
 
     response.json({
       user: serializeEmployee(employee),
       token: Buffer.from(`${employee.refId}:${employee.role}:${employee.login}`).toString('base64url'),
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/employees', async (request, response, next) => {
+  try {
+    const payload = request.body as {
+      name?: string
+      login?: string
+      pinCode?: string
+      city?: string
+      outletIds?: string[]
+      role?: string
+      createdById?: string
+    }
+
+    const creatorId = String(payload.createdById ?? '')
+    const creator = creatorId ? await Employee.findOne({ refId: creatorId }).lean() : null
+    if (!creator || creator.role !== 'reviewer' || creator.accessScope !== 'all') {
+      throw badRequest('Только главный менеджер может добавлять сотрудников.')
+    }
+
+    const name = String(payload.name ?? '').trim()
+    const login = String(payload.login ?? '').trim().toLowerCase()
+    const pinCode = String(payload.pinCode ?? '').trim()
+    const city = String(payload.city ?? '').trim()
+    let outletIds: string[] = Array.isArray(payload.outletIds) ? payload.outletIds : []
+    const role = payload.role === 'reviewer' ? 'reviewer' : 'sender'
+
+    if (!name || name.length < 2) throw badRequest('Введите ФИО сотрудника.')
+    if (!login || login.length < 2) throw badRequest('Введите логин.')
+    if (!pinCode || pinCode.length < 4) throw badRequest('Пин-код должен быть 4-6 цифр.')
+    if (!/^\d{4,6}$/.test(pinCode)) throw badRequest('Пин-код должен состоять только из цифр (4-6).')
+    if (!city) throw badRequest('Укажите город.')
+
+    const existing = await Employee.findOne({ login }).lean()
+    if (existing) throw badRequest('Сотрудник с таким логином уже существует.')
+
+    if (outletIds.length === 0) {
+      const matchingOutlets = await Outlet.find({ city }).lean()
+      outletIds = matchingOutlets.map((o) => o.refId)
+    }
+
+    const primaryOutlet = outletIds[0] ?? ''
+    const refId = `user-${login}-${Date.now()}`
+    const newEmployee = await Employee.create({
+      refId,
+      name,
+      role,
+      login,
+      password: pinCode,
+      pinCode,
+      city,
+      outletId: primaryOutlet,
+      outletIds,
+      accessScope: 'assigned',
+      iikoEmployeeId: `emp_${login}_${Date.now()}`,
+    })
+
+    response.status(201).json({ user: serializeEmployee(newEmployee.toObject()) })
   } catch (error) {
     next(error)
   }
@@ -1127,6 +1277,45 @@ app.get('/api/bootstrap', async (request, response, next) => {
       ),
       auditEvents: auditEvents.map(serializeAuditEvent),
       serverTime: new Date().toISOString(),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/iiko/mock-documents', async (request, response, next) => {
+  try {
+    const publicBaseUrl = getPublicBaseUrl(request)
+    const documents = await getIikoMockDocuments(publicBaseUrl)
+    response.json({
+      documents,
+      serverTime: new Date().toISOString(),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/iiko/mock-stream', async (request, response, next) => {
+  try {
+    const publicBaseUrl = getPublicBaseUrl(request)
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    })
+    response.write('retry: 2000\n\n')
+
+    iikoSubscribers.add(response)
+    const documents = await getIikoMockDocuments(publicBaseUrl)
+    writeIikoEvent(response, 'snapshot', {
+      documents,
+      serverTime: new Date().toISOString(),
+    })
+
+    request.on('close', () => {
+      iikoSubscribers.delete(response)
     })
   } catch (error) {
     next(error)
@@ -1318,6 +1507,8 @@ app.patch('/api/requests/:requestId/approve', async (request, response, next) =>
     await current.save()
 
     await addAuditEvent(current.requestId, reviewedById, 'Подтвердил и отправил в Iiko')
+    const mockDocument = await buildIikoMockDocument(current.toObject(), publicBaseUrl)
+    emitIikoMockEvent('document.created', mockDocument)
     response.json({ request: serializeRequest(current.toObject(), publicBaseUrl) })
   } catch (error) {
     next(error)
@@ -1416,18 +1607,11 @@ async function start() {
 async function seedIfNeeded() {
   await syncReferenceData()
 
-  const writeOffCount = await WriteOff.countDocuments()
-  if (writeOffCount > 0) return
-
-  await Promise.all([
-    WriteOff.insertMany(requestsSeed),
-    AuditEvent.insertMany(auditSeed),
-    Counter.findOneAndUpdate(
-      { _id: 'request' },
-      { $set: { seq: 1028 } },
-      { upsert: true, setDefaultsOnInsert: true },
-    ),
-  ])
+  await Counter.findOneAndUpdate(
+    { _id: 'request' },
+    { $setOnInsert: { seq: 1000 } },
+    { upsert: true, setDefaultsOnInsert: true },
+  )
 }
 
 async function syncReferenceData() {
@@ -1487,9 +1671,7 @@ async function resetDemoData() {
     Product.insertMany(productsSeed),
     Employee.insertMany(employeesSeed),
     Reason.insertMany(reasonsSeed),
-    WriteOff.insertMany(requestsSeed),
-    AuditEvent.insertMany(auditSeed),
-    Counter.create({ _id: 'request', seq: 1028 }),
+    Counter.create({ _id: 'request', seq: 1000 }),
   ])
 }
 
@@ -1511,6 +1693,117 @@ async function addAuditEvent(requestId: string, userId: string, action: string) 
     action,
     createdAt: new Date(),
   })
+}
+
+async function getIikoMockDocuments(publicBaseUrl: string) {
+  const approvedRequests = await WriteOff.find({
+    status: 'approved',
+    iikoDocumentId: { $exists: true, $ne: '' },
+  })
+    .sort({ reviewedAt: -1, createdAt: -1 })
+    .limit(80)
+    .lean()
+
+  return Promise.all(
+    approvedRequests.map((writeOffRequest) =>
+      buildIikoMockDocument(writeOffRequest, publicBaseUrl),
+    ),
+  )
+}
+
+async function buildIikoMockDocument(
+  writeOffRequest: WriteOffRecord & { _id?: unknown; __v?: number },
+  _publicBaseUrl: string,
+): Promise<IikoMockDocument> {
+  const [outlet, product, reason, sender, reviewer, deductionEmployee] = await Promise.all([
+    Outlet.findOne({ refId: writeOffRequest.outletId }).lean(),
+    Product.findOne({ refId: writeOffRequest.productId }).lean(),
+    Reason.findOne({ refId: writeOffRequest.reasonId }).lean(),
+    Employee.findOne({ refId: writeOffRequest.createdById }).lean(),
+    writeOffRequest.reviewedById
+      ? Employee.findOne({ refId: writeOffRequest.reviewedById }).lean()
+      : null,
+    writeOffRequest.deductionEmployeeId
+      ? Employee.findOne({ refId: writeOffRequest.deductionEmployeeId }).lean()
+      : null,
+  ])
+
+  const quantity = Number(writeOffRequest.quantity)
+  const cost = product?.cost ?? 0
+  const documentId = writeOffRequest.iikoDocumentId ?? createIikoDocumentId(writeOffRequest.requestId)
+  const itemComment = [
+    reason?.name ?? 'Списание',
+    writeOffRequest.comment,
+    writeOffRequest.photoHash ? `photo=${writeOffRequest.photoHash}` : '',
+  ].filter(Boolean).join(' | ')
+
+  return {
+    id: documentId,
+    requestId: writeOffRequest.requestId,
+    status: 'created',
+    createdAt: new Date(writeOffRequest.reviewedAt ?? writeOffRequest.createdAt).toISOString(),
+    source: 'mock-adapter',
+    outlet: {
+      id: outlet?.refId ?? writeOffRequest.outletId,
+      name: outlet?.name ?? 'Bahandi',
+      iikoStoreId: outlet?.iikoStoreId ?? 'mock-store',
+    },
+    product: {
+      id: product?.refId ?? writeOffRequest.productId,
+      name: product?.name ?? 'Продукт',
+      iikoProductId: product?.iikoProductId ?? 'mock-product',
+      quantity,
+      unit: writeOffRequest.unit,
+      cost,
+      amount: Math.round(quantity * cost),
+    },
+    reason: {
+      id: reason?.refId ?? writeOffRequest.reasonId,
+      name: reason?.name ?? 'Списание',
+    },
+    sender: {
+      id: sender?.refId ?? writeOffRequest.createdById,
+      name: sender?.name ?? 'Сотрудник',
+      iikoEmployeeId: sender?.iikoEmployeeId ?? 'mock-sender',
+    },
+    reviewer: {
+      id: reviewer?.refId ?? writeOffRequest.reviewedById ?? 'mock-reviewer',
+      name: reviewer?.name ?? 'Проверяющий',
+      iikoEmployeeId: reviewer?.iikoEmployeeId ?? 'mock-reviewer',
+    },
+    deductionEmployee: deductionEmployee
+      ? {
+          id: deductionEmployee.refId,
+          name: deductionEmployee.name,
+          iikoEmployeeId: deductionEmployee.iikoEmployeeId,
+        }
+      : undefined,
+    comment: writeOffRequest.comment,
+    payload: {
+      documentType: 'WRITEOFF_DOCUMENT',
+      externalNumber: documentId,
+      storeId: outlet?.iikoStoreId ?? 'mock-store',
+      items: [
+        {
+          productId: product?.iikoProductId ?? 'mock-product',
+          amount: quantity,
+          unit: writeOffRequest.unit,
+          comment: itemComment,
+        },
+      ],
+    },
+  }
+}
+
+function emitIikoMockEvent(event: string, payload: unknown) {
+  for (const subscriber of iikoSubscribers) {
+    writeIikoEvent(subscriber, event, payload)
+  }
+}
+
+function writeIikoEvent(response: express.Response, event: string, payload: unknown) {
+  response.write(`event: ${event}\n`)
+  response.write(`data: ${JSON.stringify(payload)}\n\n`)
 }
 
 function getEmployeeOutletIds(employee: Pick<EmployeeRecord, 'outletId' | 'outletIds'>) {
