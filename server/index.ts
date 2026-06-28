@@ -4,19 +4,26 @@ import dotenv from 'dotenv'
 import express from 'express'
 import mongoose, { Schema } from 'mongoose'
 import { existsSync } from 'node:fs'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
 import { createServer } from 'node:http'
+import { promisify } from 'node:util'
 import * as path from 'node:path'
+import * as os from 'node:os'
+import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url))
 const siteDir = path.resolve(serverDir, '..')
 const projectDir = path.resolve(siteDir, '..')
+const execFileAsync = promisify(execFile)
 
 dotenv.config({ path: path.join(projectDir, '.env') })
 dotenv.config({ path: path.join(siteDir, '.env'), override: true })
 
 type Role = 'sender' | 'reviewer'
-type AccessScope = 'assigned' | 'all'
+type AccessScope = 'assigned' | 'city' | 'all'
 type Status = 'pending' | 'approved' | 'rejected' | 'iiko_error'
 type WriteOffType = 'without_deduction' | 'with_deduction'
 
@@ -69,8 +76,9 @@ type WriteOffRecord = {
   comment: string
   photoUrl: string
   photoName: string
+  photoUrls?: string[]
+  photoNames?: string[]
   photoHash: string
-  extraPhotoUrls?: string[]
   status: Status
   createdById: string
   reviewedById?: string
@@ -164,7 +172,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-01',
     sortOrder: 1,
     name: 'Bahandi Хан Шатыр',
-    address: 'ТРЦ Хан Шатыр, 3 этаж',
+    address: 'Астана, проспект Туран, 37 (10:00-23:00, ТРЦ Хан Шатыр, 3 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_001',
   },
@@ -172,7 +180,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-02',
     sortOrder: 2,
     name: 'Bahandi Азия Парк',
-    address: 'ТРЦ Asia park, 3 этаж',
+    address: 'Астана, проспект Кабанбай батыра, 21 (10:00-24:00, ТРЦ Asia park, 3 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_002',
   },
@@ -180,7 +188,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-03',
     sortOrder: 3,
     name: 'Bahandi Мега SilkWay',
-    address: 'ТРЦ Мега SilkWay, 2 этаж',
+    address: 'Астана, проспект Кабанбай батыр, 62 (10:00-24:00, ТРЦ Мега SilkWay, 2 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_003',
   },
@@ -188,7 +196,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-004',
     sortOrder: 4,
     name: 'Bahandi Магнум Туран',
-    address: 'Проспект Туран, 55д, киоск',
+    address: 'Астана, проспект Туран, 55д (11:00-24:00, киоск)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_004',
   },
@@ -196,7 +204,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-005',
     sortOrder: 5,
     name: 'Bahandi Чубары',
-    address: 'М-н Шубар, киоск',
+    address: 'Астана, ул. Темирказык, 2Б (11:00-24:00, м-н Шубар, киоск)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_005',
   },
@@ -204,7 +212,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-006',
     sortOrder: 6,
     name: 'Bahandi Астана Молл',
-    address: 'Проспект Тауелсиздик, 34/7, киоск',
+    address: 'Астана, проспект Тауелсиздик, 34/7 (11:00-24:00, киоск)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_006',
   },
@@ -212,7 +220,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-007',
     sortOrder: 7,
     name: 'Bahandi Петрова',
-    address: 'Ул. Алексея Петрова, 22г, 1 этаж',
+    address: 'Астана, ул. Алексея Петрова, 22г (11:00-24:00, 1 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_007',
   },
@@ -220,7 +228,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-008',
     sortOrder: 8,
     name: 'Bahandi Аружан',
-    address: 'ТРЦ Аружан, 3 этаж',
+    address: 'Астана, ул. Илияса Жансугурова, 8/1 (10:00-23:00, ТРЦ Аружан, 3 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_008',
   },
@@ -228,7 +236,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-009',
     sortOrder: 9,
     name: 'Bahandi Иманова',
-    address: 'Ул. Аменгельды Иманова, 3, киоск',
+    address: 'Астана, ул. Аменгельды Иманова, 3 (11:00-24:00, киоск)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_009',
   },
@@ -236,7 +244,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-010',
     sortOrder: 10,
     name: 'Bahandi Даму Молл',
-    address: 'ТРЦ Damu Mall, 2 этаж',
+    address: 'Астана, ул. Жумекен Нажимеденов, 26 (10:00-22:00, ТРЦ Damu Mall, 2 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_010',
   },
@@ -244,7 +252,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-011',
     sortOrder: 11,
     name: 'Bahandi Магнум Кошкарбаева',
-    address: 'Юго-Восток, жилмассив',
+    address: 'Астана, ул. Едил, 26 (11:00-24:00, Юго-Восток (левая сторона) ж/м)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_011',
   },
@@ -252,7 +260,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-012',
     sortOrder: 12,
     name: 'Bahandi Женис',
-    address: 'Проспект Женис, 28а, киоск',
+    address: 'Астана, проспект Женис, 28а (11:00-24:00, киоск)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_012',
   },
@@ -260,7 +268,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-013',
     sortOrder: 13,
     name: 'Bahandi Мангилик Ел',
-    address: 'ЖК Only Sun',
+    address: 'Астана, проспект Мангилик Ел, 56 (11:00-24:00, ЖК Only Sun)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_013',
   },
@@ -268,7 +276,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-014',
     sortOrder: 14,
     name: 'Bahandi Тумар',
-    address: 'Ул. Сыганак, 1Б/2, киоск',
+    address: 'Астана, ул. Сыганак, 1Б/2 (11:00-24:00, киоск)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_014',
   },
@@ -276,7 +284,7 @@ const outletsSeed: OutletRecord[] = [
     refId: 'outlet-087',
     sortOrder: 15,
     name: 'Bahandi Жибек Жолы',
-    address: 'ТРЦ Жибек Жолы, 3 этаж',
+    address: 'Астана, ул. Ахмета Байтурсынова, 34 (10:00-22:00, ТРЦ Жибек Жолы, 3 этаж)',
     city: CITY_ASTANA,
     iikoStoreId: 'store_bahandi_087',
   },
@@ -858,6 +866,10 @@ const outletsSeed: OutletRecord[] = [
   },
 ]
 
+const ASTANA_OUTLET_IDS = outletsSeed
+  .filter((outlet) => outlet.city === CITY_ASTANA)
+  .map((outlet) => outlet.refId)
+
 const productsSeed: ProductRecord[] = [
   { refId: 'product-bun', name: 'Булочка бриошь (стандартная)', unit: 'шт', iikoProductId: 'prd_brioche_bun', cost: 145, category: 'Хлеб' },
   { refId: 'product-patty', name: 'Котлета говяжья', unit: 'шт', iikoProductId: 'prd_beef_patty', cost: 520, category: 'Полуфабрикаты' },
@@ -908,8 +920,8 @@ const employeesSeed: EmployeeRecord[] = [
     pinCode: '1234',
     city: CITY_ASTANA,
     outletId: 'outlet-01',
-    outletIds: ['outlet-01', 'outlet-02'],
-    accessScope: 'assigned',
+    outletIds: ASTANA_OUTLET_IDS,
+    accessScope: 'city',
     iikoEmployeeId: 'emp_aibek',
   },
   {
@@ -921,8 +933,8 @@ const employeesSeed: EmployeeRecord[] = [
     pinCode: '2222',
     city: CITY_ASTANA,
     outletId: 'outlet-03',
-    outletIds: ['outlet-03'],
-    accessScope: 'assigned',
+    outletIds: ASTANA_OUTLET_IDS,
+    accessScope: 'city',
     iikoEmployeeId: 'emp_madina',
   },
   {
@@ -973,7 +985,7 @@ const employeesSeed: EmployeeRecord[] = [
     pinCode: '9999',
     city: CITY_ASTANA,
     outletId: 'outlet-01',
-    outletIds: ['outlet-01', 'outlet-02', 'outlet-03', 'outlet-004', 'outlet-005'],
+    outletIds: ['outlet-01'],
     accessScope: 'assigned',
     iikoEmployeeId: 'emp_aigerim',
   },
@@ -999,8 +1011,6 @@ const reasonsSeed: ReasonRecord[] = [
   { refId: 'leftover', name: 'Остаток после приготовления' },
   { refId: 'receiving', name: 'Брак при приемке' },
 ]
-
-// requestsSeed and auditSeed unused variables removed
 
 const outletSchema = new Schema<OutletRecord>(
   {
@@ -1037,7 +1047,7 @@ const employeeSchema = new Schema<EmployeeRecord>(
     city: { type: String, required: true, default: '' },
     outletId: { type: String, required: true },
     outletIds: { type: [String], required: true, default: [] },
-    accessScope: { type: String, enum: ['assigned', 'all'], required: true, default: 'assigned' },
+    accessScope: { type: String, enum: ['assigned', 'city', 'all'], required: true, default: 'assigned' },
     iikoEmployeeId: { type: String, required: true },
   },
   { timestamps: true },
@@ -1068,8 +1078,9 @@ const writeOffSchema = new Schema<WriteOffRecord>(
     comment: { type: String, required: true, minlength: 10 },
     photoUrl: { type: String, required: true },
     photoName: { type: String, required: true },
+    photoUrls: { type: [String], required: true, default: [] },
+    photoNames: { type: [String], required: true, default: [] },
     photoHash: { type: String, required: true, index: true },
-    extraPhotoUrls: { type: [String], default: [] },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected', 'iiko_error'],
@@ -1123,7 +1134,7 @@ const iikoSubscribers = new Set<express.Response>()
 
 app.set('trust proxy', 1)
 app.use(cors({ origin: corsOrigin }))
-app.use(express.json({ limit: '12mb' }))
+app.use(express.json({ limit: '50mb' }))
 app.use(express.static(publicDir, { maxAge: '1h' }))
 
 if (shouldServeWeb && existsSync(distDir)) {
@@ -1254,17 +1265,19 @@ app.get('/api/bootstrap', async (request, response, next) => {
     const outlets = currentUser
       ? await Outlet.find(createOutletQuery(currentUser)).sort({ sortOrder: 1, refId: 1 }).lean()
       : []
+    const accessibleOutletIds = outlets.map((outlet) => outlet.refId)
     const requests = currentUser
-      ? await WriteOff.find(createRequestQuery(currentUser)).sort({ createdAt: -1 }).lean()
+      ? await WriteOff.find(createRequestQuery(currentUser, accessibleOutletIds)).sort({ createdAt: -1 }).lean()
       : []
     const requestIds = requests.map((writeOffRequest) => writeOffRequest.requestId)
+    const requestEmployeeIds = getRequestEmployeeIds(requests)
     const [employees, auditEvents] = currentUser
       ? await Promise.all([
-          Employee.find(createEmployeeQuery(currentUser)).sort({ role: 1, refId: 1 }).lean(),
-          requestIds.length
-            ? AuditEvent.find({ requestId: { $in: requestIds } }).sort({ createdAt: -1 }).lean()
-            : [],
-        ])
+        Employee.find(createEmployeeQuery(currentUser, accessibleOutletIds, requestEmployeeIds) as never).sort({ role: 1, refId: 1 }).lean(),
+        requestIds.length
+          ? AuditEvent.find({ requestId: { $in: requestIds } }).sort({ createdAt: -1 }).lean()
+          : [],
+      ])
       : [[], []]
 
     response.json({
@@ -1370,7 +1383,7 @@ ${reasonList}
 
     const mimeType = photoBase64.startsWith('data:image/png') ? 'image/png'
       : photoBase64.startsWith('data:image/webp') ? 'image/webp'
-      : 'image/jpeg'
+        : 'image/jpeg'
 
     const base64Data = photoBase64.includes(',') ? photoBase64.split(',')[1] : photoBase64
 
@@ -1456,9 +1469,14 @@ app.post('/api/requests', async (request, response, next) => {
       Employee.findOne({ refId: payload.createdById }).lean(),
     ])
 
-    validateCreateRequest(payload, Boolean(product), sender)
+    await validateCreateRequest(payload, Boolean(product), sender)
 
     const nextId = await getNextRequestId()
+    const photoUrls = await persistIncomingPhotoUrls(
+      normalizeIncomingPhotoUrls(payload.photoUrl, payload.photoUrls),
+      nextId,
+    )
+    const photoNames = normalizeIncomingPhotoNames(payload.photoName, payload.photoNames, photoUrls.length)
     const createdRequest = await WriteOff.create({
       requestId: nextId,
       outletId: payload.outletId,
@@ -1470,10 +1488,11 @@ app.post('/api/requests', async (request, response, next) => {
       deductionEmployeeId:
         payload.type === 'with_deduction' ? payload.deductionEmployeeId : undefined,
       comment: payload.comment?.trim(),
-      photoUrl: normalizeIncomingPhotoUrl(payload.photoUrl),
-      photoName: payload.photoName,
+      photoUrl: photoUrls[0],
+      photoName: photoNames[0],
+      photoUrls,
+      photoNames,
       photoHash: payload.photoHash,
-      extraPhotoUrls: (payload.extraPhotoUrls ?? []).map(url => normalizeIncomingPhotoUrl(url) || ''),
       status: 'pending',
       createdById: payload.createdById,
       createdAt: new Date(),
@@ -1482,7 +1501,7 @@ app.post('/api/requests', async (request, response, next) => {
     await addAuditEvent(nextId, payload.createdById ?? 'unknown', 'Создал заявку')
     response
       .status(201)
-      .json({ request: serializeRequest((createdRequest as any).toObject(), publicBaseUrl) })
+      .json({ request: serializeRequest(createdRequest.toObject(), publicBaseUrl) })
   } catch (error) {
     next(error)
   }
@@ -1561,8 +1580,15 @@ app.get(/^\/(?!api(?:\/|$)).*/, (_request, response, next) => {
   response.sendFile(indexPath)
 })
 
-app.use((error: Error & { status?: number }, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+app.use((error: Error & { status?: number; type?: string }, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
   const status = error.status ?? 500
+  if (status === 413 || error.type === 'entity.too.large') {
+    console.warn('[Request Too Large]', error.message)
+    response.status(413).json({
+      error: 'Фото слишком тяжелые. Удалите лишние фото или загрузите снимки меньшего размера.',
+    })
+    return
+  }
   if (status >= 500) console.error('[Server Error]', error.message, error.stack)
   response.status(status).json({
     error: status >= 500 ? 'Server error' : error.message,
@@ -1582,6 +1608,8 @@ async function start() {
     dbName: process.env.MONGODB_DB ?? 'bahandi_writeoff',
   })
   await seedIfNeeded()
+  await migrateStoredDataPhotos()
+  await migrateStoredUnsupportedPhotoFiles()
 
   const server = createServer(app)
   server.listen(apiPort, apiHost, () => {
@@ -1774,10 +1802,10 @@ async function buildIikoMockDocument(
     },
     deductionEmployee: deductionEmployee
       ? {
-          id: deductionEmployee.refId,
-          name: deductionEmployee.name,
-          iikoEmployeeId: deductionEmployee.iikoEmployeeId,
-        }
+        id: deductionEmployee.refId,
+        name: deductionEmployee.name,
+        iikoEmployeeId: deductionEmployee.iikoEmployeeId,
+      }
       : undefined,
     comment: writeOffRequest.comment,
     payload: {
@@ -1812,32 +1840,65 @@ function getEmployeeOutletIds(employee: Pick<EmployeeRecord, 'outletId' | 'outle
   return [...new Set(outletIds.filter(Boolean))]
 }
 
-function canAccessOutlet(employee: EmployeeRecord, outletId?: string) {
+async function canAccessOutlet(employee: EmployeeRecord, outletId?: string) {
   if (!outletId) return false
-  return employee.accessScope === 'all' || getEmployeeOutletIds(employee).includes(outletId)
+  if (employee.accessScope === 'all') return true
+  if (getEmployeeOutletIds(employee).includes(outletId)) return true
+  if (employee.accessScope !== 'city') return false
+
+  const outlet = await Outlet.findOne({ refId: outletId }).select({ city: 1 }).lean()
+  return Boolean(outlet?.city && outlet.city === employee.city)
 }
 
 function createOutletQuery(employee: EmployeeRecord) {
   if (employee.accessScope === 'all') return {}
+  if (employee.accessScope === 'city') return { city: employee.city }
   return { refId: { $in: getEmployeeOutletIds(employee) } }
 }
 
-function createRequestQuery(employee: EmployeeRecord) {
+function createRequestQuery(employee: EmployeeRecord, accessibleOutletIds: string[]) {
   if (employee.role === 'sender') return { createdById: employee.refId }
   if (employee.accessScope === 'all') return {}
-  return { outletId: { $in: getEmployeeOutletIds(employee) } }
+  return { outletId: { $in: accessibleOutletIds } }
 }
 
-function createEmployeeQuery(employee: EmployeeRecord) {
+function createEmployeeQuery(
+  employee: EmployeeRecord,
+  accessibleOutletIds: string[],
+  requestEmployeeIds: string[],
+): Record<string, unknown> {
   if (employee.accessScope === 'all') return {}
-  const outletIds = getEmployeeOutletIds(employee)
+  const outletIds = accessibleOutletIds.length ? accessibleOutletIds : getEmployeeOutletIds(employee)
+  if (employee.role === 'reviewer' && employee.accessScope === 'assigned') {
+    return {
+      $or: [
+        { refId: employee.refId },
+        { refId: { $in: requestEmployeeIds } },
+        { role: 'sender', outletId: { $in: outletIds } },
+      ],
+    }
+  }
+
   return {
     $or: [
       { refId: employee.refId },
+      ...(employee.accessScope === 'city' ? [{ city: employee.city }] : []),
       { outletId: { $in: outletIds } },
       { outletIds: { $in: outletIds } },
     ],
   }
+}
+
+function getRequestEmployeeIds(requests: Array<Pick<WriteOffRecord, 'createdById' | 'reviewedById' | 'deductionEmployeeId'>>) {
+  return [
+    ...new Set(
+      requests.flatMap((request) => [
+        request.createdById,
+        request.reviewedById,
+        request.deductionEmployeeId,
+      ]).filter((id): id is string => Boolean(id)),
+    ),
+  ]
 }
 
 async function assertReviewerAccess(reviewerId: string, outletId: string) {
@@ -1845,12 +1906,12 @@ async function assertReviewerAccess(reviewerId: string, outletId: string) {
   if (!reviewer || reviewer.role !== 'reviewer') {
     throw badRequest('Пользователь не является проверяющим.')
   }
-  if (!canAccessOutlet(reviewer, outletId)) {
+  if (!(await canAccessOutlet(reviewer, outletId))) {
     throw badRequest('У проверяющего нет доступа к этой торговой точке.')
   }
 }
 
-function validateCreateRequest(
+async function validateCreateRequest(
   payload: Partial<WriteOffRecord>,
   productExists: boolean,
   sender: EmployeeRecord | null,
@@ -1874,7 +1935,7 @@ function validateCreateRequest(
   if (!sender || sender.role !== 'sender') {
     throw badRequest('Пользователь не является сотрудником торговой точки.')
   }
-  if (!canAccessOutlet(sender, payload.outletId)) {
+  if (!(await canAccessOutlet(sender, payload.outletId))) {
     throw badRequest('Сотрудник не привязан к выбранной торговой точке.')
   }
 }
@@ -1906,11 +1967,14 @@ function serializeRequest(
   publicBaseUrl: string,
 ) {
   const { requestId, createdAt, reviewedAt, ...rest } = stripMongoFields(record)
+  const photoUrls = rest.photoUrls?.length ? rest.photoUrls : [rest.photoUrl]
+  const photoNames = rest.photoNames?.length ? rest.photoNames : [rest.photoName]
   return {
     id: requestId,
     ...rest,
     photoUrl: resolvePublicUrl(rest.photoUrl, publicBaseUrl),
-    extraPhotoUrls: (rest.extraPhotoUrls ?? []).map(url => resolvePublicUrl(url, publicBaseUrl)),
+    photoUrls: photoUrls.map((photoUrl) => resolvePublicUrl(photoUrl, publicBaseUrl)),
+    photoNames,
     createdAt: new Date(createdAt).toISOString(),
     reviewedAt: reviewedAt ? new Date(reviewedAt).toISOString() : undefined,
   }
@@ -1961,6 +2025,226 @@ function getPublicBaseUrl(request: express.Request) {
 function normalizeIncomingPhotoUrl(photoUrl?: string) {
   if (!photoUrl) return photoUrl
   return photoUrl.startsWith('/writeoff-evidence') ? '/writeoff-evidence.png' : photoUrl
+}
+
+function normalizeIncomingPhotoUrls(primaryPhotoUrl?: string, photoUrls?: string[]) {
+  const urls = [primaryPhotoUrl, ...(Array.isArray(photoUrls) ? photoUrls : [])]
+    .map((photoUrl) => normalizeIncomingPhotoUrl(photoUrl)?.trim())
+    .filter((photoUrl): photoUrl is string => Boolean(photoUrl))
+
+  return [...new Set(urls)]
+}
+
+function normalizeIncomingPhotoNames(primaryPhotoName?: string, photoNames?: string[], length = 1) {
+  const incomingNames = Array.isArray(photoNames) ? photoNames : []
+  const names = (incomingNames.length ? incomingNames : [primaryPhotoName])
+    .map((photoName) => photoName?.trim())
+    .filter((photoName): photoName is string => Boolean(photoName))
+
+  if (primaryPhotoName?.trim() && names[0] !== primaryPhotoName.trim()) {
+    names.unshift(primaryPhotoName.trim())
+  }
+
+  return Array.from({ length }, (_value, index) => names[index] ?? `photo-${index + 1}.jpg`)
+}
+
+async function persistIncomingPhotoUrls(photoUrls: string[], requestId: string) {
+  const savedPhotoUrls = await Promise.all(
+    photoUrls.map((photoUrl, index) => persistIncomingPhotoUrl(photoUrl, requestId, index)),
+  )
+  return savedPhotoUrls
+}
+
+async function persistIncomingPhotoUrl(photoUrl: string, requestId: string, index: number) {
+  if (!photoUrl.startsWith('data:image/')) return photoUrl
+
+  const parsed = parseDataImageUrl(photoUrl)
+  if (!parsed) throw badRequest('Не удалось обработать фото. Загрузите изображение ещё раз.')
+  const normalized = await normalizeImageBuffer(parsed.buffer, parsed.mimeType)
+
+  const uploadDir = path.join(publicDir, 'uploads', 'writeoffs')
+  await mkdir(uploadDir, { recursive: true })
+
+  const fileName = `${requestId}-${index + 1}-${Date.now()}-${randomUUID().slice(0, 8)}.${normalized.extension}`
+  await writeFile(path.join(uploadDir, fileName), normalized.buffer)
+  return `/uploads/writeoffs/${fileName}`
+}
+
+async function migrateStoredDataPhotos() {
+  const requests = await WriteOff.find({
+    $or: [
+      { photoUrl: /^data:image\// },
+      { photoUrls: { $elemMatch: { $regex: '^data:image/' } } },
+    ],
+  })
+
+  for (const request of requests) {
+    const sourcePhotoUrls = request.photoUrls?.length ? request.photoUrls : [request.photoUrl]
+    const savedPhotoUrls = await persistIncomingPhotoUrls(sourcePhotoUrls, request.requestId)
+    request.photoUrl = savedPhotoUrls[0]
+    request.photoUrls = savedPhotoUrls
+    await request.save()
+  }
+
+  if (requests.length) {
+    console.log(`Migrated ${requests.length} write-off request photo payloads to public uploads.`)
+  }
+}
+
+async function migrateStoredUnsupportedPhotoFiles() {
+  const requests = await WriteOff.find({
+    $or: [
+      { photoUrl: /\.(heic|heif)$/i },
+      { photoUrls: { $elemMatch: { $regex: '\\.(heic|heif)$', $options: 'i' } } },
+    ],
+  })
+
+  let migratedCount = 0
+  for (const request of requests) {
+    const sourcePhotoUrls = request.photoUrls?.length ? request.photoUrls : [request.photoUrl]
+    const nextPhotoUrls = await Promise.all(
+      sourcePhotoUrls.map(async (photoUrl) => {
+        try {
+          return await convertStoredUnsupportedPhoto(photoUrl, request.requestId)
+        } catch (error) {
+          console.warn(
+            `[Photo Migration] Could not convert ${photoUrl}:`,
+            error instanceof Error ? error.message : error,
+          )
+          return photoUrl
+        }
+      }),
+    )
+
+    if (nextPhotoUrls.some((photoUrl, index) => photoUrl !== sourcePhotoUrls[index])) {
+      request.photoUrl = nextPhotoUrls[0]
+      request.photoUrls = nextPhotoUrls
+      await request.save()
+      migratedCount += 1
+    }
+  }
+
+  if (migratedCount) {
+    console.log(`Migrated ${migratedCount} write-off request HEIC/HEIF photos to JPG.`)
+  }
+}
+
+async function convertStoredUnsupportedPhoto(photoUrl: string, requestId: string) {
+  if (!/\.(heic|heif)$/i.test(photoUrl)) return photoUrl
+
+  const relativePath = photoUrlToPublicRelativePath(photoUrl)
+  if (!relativePath) return photoUrl
+
+  const sourcePath = path.join(publicDir, relativePath)
+  if (!existsSync(sourcePath)) return photoUrl
+
+  const sourceBuffer = await readFile(sourcePath)
+  const converted = await convertHeicBufferToJpeg(sourceBuffer)
+  const parsedPath = path.parse(sourcePath)
+  const nextBaseName = `${parsedPath.name}-${requestId}-web`
+  const nextFileName = `${nextBaseName}.jpg`
+  const nextPath = path.join(parsedPath.dir, nextFileName)
+  await writeFile(nextPath, converted)
+
+  const backupPath = path.join(parsedPath.dir, `${parsedPath.base}.bak`)
+  await rename(sourcePath, backupPath).catch(async () => {
+    await unlink(sourcePath).catch(() => undefined)
+  })
+
+  return `/uploads/writeoffs/${nextFileName}`
+}
+
+function photoUrlToPublicRelativePath(photoUrl: string) {
+  try {
+    const parsedUrl = photoUrl.startsWith('http://') || photoUrl.startsWith('https://')
+      ? new URL(photoUrl)
+      : null
+    const pathname = parsedUrl?.pathname ?? photoUrl
+    if (!pathname.startsWith('/uploads/writeoffs/')) return null
+    return pathname.replace(/^\//, '')
+  } catch {
+    return null
+  }
+}
+
+function parseDataImageUrl(photoUrl: string) {
+  const match = photoUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([\s\S]+)$/)
+  if (!match) return null
+
+  const mimeType = match[1].toLowerCase()
+  const extension = getImageExtension(mimeType)
+  if (!extension) return null
+
+  return {
+    mimeType,
+    extension,
+    buffer: Buffer.from(match[2].replace(/\s/g, ''), 'base64'),
+  }
+}
+
+async function normalizeImageBuffer(buffer: Buffer, mimeType: string) {
+  if (mimeType === 'image/heic' || mimeType === 'image/heif') {
+    try {
+      return { extension: 'jpg', buffer: await convertHeicBufferToJpeg(buffer) }
+    } catch {
+      throw badRequest('HEIC фото не удалось конвертировать. Загрузите фото в JPG/PNG.')
+    }
+  }
+
+  return {
+    extension: getImageExtension(mimeType) ?? 'jpg',
+    buffer,
+  }
+}
+
+async function convertHeicBufferToJpeg(buffer: Buffer) {
+  try {
+    return await sharp(buffer).rotate().jpeg({ quality: 86 }).toBuffer()
+  } catch (sharpError) {
+    try {
+      return await convertHeicBufferWithFfmpeg(buffer)
+    } catch {
+      throw sharpError
+    }
+  }
+}
+
+async function convertHeicBufferWithFfmpeg(buffer: Buffer) {
+  const tempDir = path.join(os.tmpdir(), 'bahandi-heic')
+  await mkdir(tempDir, { recursive: true })
+  const id = `${Date.now()}-${randomUUID().slice(0, 8)}`
+  const inputPath = path.join(tempDir, `${id}.heic`)
+  const outputPath = path.join(tempDir, `${id}.jpg`)
+
+  try {
+    await writeFile(inputPath, buffer)
+    await execFileAsync('ffmpeg', [
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      inputPath,
+      '-frames:v',
+      '1',
+      '-q:v',
+      '2',
+      outputPath,
+    ])
+    return await readFile(outputPath)
+  } finally {
+    await unlink(inputPath).catch(() => undefined)
+    await unlink(outputPath).catch(() => undefined)
+  }
+}
+
+function getImageExtension(mimeType: string) {
+  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') return 'jpg'
+  if (mimeType === 'image/png') return 'png'
+  if (mimeType === 'image/webp') return 'webp'
+  if (mimeType === 'image/heic') return 'heic'
+  if (mimeType === 'image/heif') return 'heif'
+  return null
 }
 
 function resolvePublicUrl(photoUrl: string, publicBaseUrl: string) {
