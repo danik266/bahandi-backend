@@ -1460,6 +1460,67 @@ ${reasonList}
   }
 })
 
+app.post('/api/ai/transcribe', async (request, response, next) => {
+  try {
+    const { audioBase64, language } = request.body as {
+      audioBase64: string
+      language?: 'ru' | 'kk'
+    }
+
+    if (!audioBase64) throw badRequest('Нет аудио для распознавания.')
+
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) throw badRequest('Gemini API ключ не настроен.')
+
+    const parsedAudio = parseDataAudioUrl(audioBase64)
+    if (!parsedAudio) throw badRequest('Некорректный аудиофайл.')
+
+    const prompt = language === 'kk'
+      ? 'Мына аудионы мәтінге айналдыр. Тек танылған мәтінді қайтар, түсіндірме қоспа.'
+      : 'Распознай речь в аудио. Верни только распознанный текст без пояснений.'
+
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: parsedAudio.mimeType, data: parsedAudio.data } },
+            ],
+          }],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 512,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      },
+    )
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text()
+      console.error('Gemini transcription error text:', errorText)
+      throw badRequest('Ошибка распознавания речи: ' + geminiResponse.status)
+    }
+
+    const geminiData = await geminiResponse.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+    }
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+      ?.replace(/^["']|["']$/g, '')
+      .trim() ?? ''
+
+    if (!text) throw badRequest('Не удалось распознать речь.')
+
+    response.json({ text })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post('/api/requests', async (request, response, next) => {
   try {
     const publicBaseUrl = getPublicBaseUrl(request)
@@ -2180,6 +2241,21 @@ function parseDataImageUrl(photoUrl: string) {
     extension,
     buffer: Buffer.from(match[2].replace(/\s/g, ''), 'base64'),
   }
+}
+
+function parseDataAudioUrl(audioUrl: string) {
+  const match = audioUrl.match(/^data:(audio\/[a-zA-Z0-9.+-]+);base64,([\s\S]+)$/)
+  if (!match) return null
+
+  return {
+    mimeType: normalizeAudioMimeType(match[1].toLowerCase()),
+    data: match[2].replace(/\s/g, ''),
+  }
+}
+
+function normalizeAudioMimeType(mimeType: string) {
+  if (mimeType === 'audio/m4a' || mimeType === 'audio/x-m4a') return 'audio/mp4'
+  return mimeType
 }
 
 async function normalizeImageBuffer(buffer: Buffer, mimeType: string) {
